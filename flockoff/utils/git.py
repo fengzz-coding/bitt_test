@@ -10,7 +10,6 @@ def run_git_command(command, check=True, capture_output=False):
             capture_output=capture_output,
             text=True,
             check=check,
-            stderr=subprocess.STDOUT
         )
         return result.stdout.strip() if capture_output else None
     except subprocess.CalledProcessError as e:
