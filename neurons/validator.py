@@ -22,17 +22,10 @@ import time
 import torch
 import typing
 import bittensor as bt
-import math
-import numpy as np
-import json
-import hashlib
-from dataclasses import asdict
 
-from flockoff import constants
-from flockoff.utils.chain import assert_registered, read_chain_commitment
 from flockoff.utils.git import check_and_update_code
 
-from flockoff.validator.database import ScoreDB
+
 
 
 class Validator:
@@ -92,7 +85,7 @@ class Validator:
 
     def __init__(self):
         bt.logging.info("Initializing validator")
-        self.config = Validator.config()
+        # self.config = Validator.config()
 
         bt.logging.info("Checking git branch")
         check_and_update_code()
@@ -106,9 +99,8 @@ class Validator:
         if self.config.eval_data_dir and self.config.eval_data_dir.startswith("~"):
             self.config.eval_data_dir = os.path.expanduser(self.config.eval_data_dir)
 
-        bt.logging(config=self.config)
-        bt.logging.info(f"Starting validator with config: {self.config}")
-
+        # bt.logging(config=self.config)
+        # bt.logging.info(f"Starting validator with config: {self.config}")
 
         self.cnt =0
 
