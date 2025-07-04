@@ -85,7 +85,7 @@ class Validator:
 
     def __init__(self):
         bt.logging.info("Initializing validator")
-        # self.config = Validator.config()
+        self.config = Validator.config()
 
         bt.logging.info("Checking git branch")
         check_and_update_code()
