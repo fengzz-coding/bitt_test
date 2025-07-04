@@ -109,69 +109,10 @@ class Validator:
         bt.logging(config=self.config)
         bt.logging.info(f"Starting validator with config: {self.config}")
 
-        # === Bittensor objects ====
-        bt.logging.info("Initializing wallet")
-        self.wallet = bt.wallet(config=self.config)
-        bt.logging.info(f"Wallet initialized: {self.wallet}")
-        bt.logging.info("Initializing subtensor")
-        try:
-            self.subtensor = bt.subtensor(config=self.config)
-            bt.logging.info(f"Subtensor initialized: {self.subtensor}")
-            bt.logging.info(f"Connected to network: {self.subtensor.network}")
-            bt.logging.info(f"Chain endpoint: {self.subtensor.chain_endpoint}")
-        except Exception as e:
-            bt.logging.error(f"Failed to initialize subtensor: {e}")
-            raise
 
-        self.dendrite = bt.dendrite(wallet=self.wallet)
-
-        bt.logging.info(f"Fetching metagraph for netuid: {self.config.netuid}")
-        self.metagraph: bt.metagraph = self.subtensor.metagraph(self.config.netuid)
-        torch.backends.cudnn.benchmark = True
-
-        bt.logging.info("Checking if wallet is registered on subnet")
-        self.uid = assert_registered(self.wallet, self.metagraph)
-
-        bt.logging.info("Initializing weights tensor")
-        self.weights = torch.zeros_like(torch.tensor(self.metagraph.S))
-        bt.logging.info(f"Weights initialized with shape: {self.weights.shape}")
-
-        self.uids_to_eval: typing.Dict[str, typing.List] = {}
-        bt.logging.info("Initializing score database")
-        self.score_db = ScoreDB("scores.db")
-        bt.logging.info("Score database initialized")
-        self.rng = np.random.default_rng()
-        bt.logging.info("Validator initialization complete")
-
-        self.last_competition_hash = None
-        tempo = self.subtensor.tempo(self.config.netuid)
-        self.last_submitted_epoch = (
-            self.subtensor.get_next_epoch_start_block(self.config.netuid) - tempo
-        )
         self.cnt =0
 
         bt.logging.info("Validator ready to run")
-
-    def should_set_weights(self) -> bool:
-        current_block = self.subtensor.get_current_block()
-        next_epoch_block = self.subtensor.get_next_epoch_start_block(self.config.netuid)
-        blocks_to_epoch = next_epoch_block - current_block
-        if self.last_submitted_epoch == next_epoch_block:
-            return False
-
-        threshold = self.config.block_threshold
-        return blocks_to_epoch <= threshold
-
-    async def try_sync_metagraph(self) -> bool:
-        bt.logging.trace("Syncing metagraph")
-        try:
-            self.metagraph = self.subtensor.metagraph(self.config.netuid)
-            self.metagraph.save()
-            bt.logging.info("Synced metagraph")
-            return True
-        except Exception as e:
-            bt.logging.error(f"Error syncing metagraph: {e}")
-            return False
 
     async def run_step(self):
         bt.logging.info("Starting run step")
