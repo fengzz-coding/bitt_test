@@ -104,7 +104,6 @@ class Validator:
         check_and_update_code()
         time.sleep(10)
 
-
     async def run(self):
         while True:
             await self.run_step()
