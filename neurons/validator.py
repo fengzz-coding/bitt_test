@@ -90,15 +90,6 @@ class Validator:
         bt.logging.info("Checking git branch")
         check_and_update_code()
 
-        if self.config.cache_dir and self.config.cache_dir.startswith("~"):
-            self.config.cache_dir = os.path.expanduser(self.config.cache_dir)
-
-        if self.config.data_dir and self.config.data_dir.startswith("~"):
-            self.config.data_dir = os.path.expanduser(self.config.data_dir)
-
-        if self.config.eval_data_dir and self.config.eval_data_dir.startswith("~"):
-            self.config.eval_data_dir = os.path.expanduser(self.config.eval_data_dir)
-
         bt.logging(config=self.config)
         bt.logging.info(f"Starting validator with config: {self.config}")
 
