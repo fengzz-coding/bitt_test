@@ -99,8 +99,8 @@ class Validator:
         if self.config.eval_data_dir and self.config.eval_data_dir.startswith("~"):
             self.config.eval_data_dir = os.path.expanduser(self.config.eval_data_dir)
 
-        # bt.logging(config=self.config)
-        # bt.logging.info(f"Starting validator with config: {self.config}")
+        bt.logging(config=self.config)
+        bt.logging.info(f"Starting validator with config: {self.config}")
 
         self.cnt =0
 
