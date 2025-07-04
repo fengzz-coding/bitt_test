@@ -24,7 +24,19 @@ import typing
 import bittensor as bt
 
 from flockoff.utils.git import check_and_update_code
+import os
+import argparse
+import asyncio
+import torch
+import typing
 
+import numpy as np
+
+
+from flockoff import constants
+from flockoff.utils.chain import assert_registered, read_chain_commitment
+
+from flockoff.validator.database import ScoreDB
 
 
 
@@ -88,12 +100,59 @@ class Validator:
         self.config = Validator.config()
 
         bt.logging.info("Checking git branch")
-        check_and_update_code()
+
+        self.cnt = 0
+
+        if self.config.cache_dir and self.config.cache_dir.startswith("~"):
+            self.config.cache_dir = os.path.expanduser(self.config.cache_dir)
+
+        if self.config.data_dir and self.config.data_dir.startswith("~"):
+            self.config.data_dir = os.path.expanduser(self.config.data_dir)
+
+        if self.config.eval_data_dir and self.config.eval_data_dir.startswith("~"):
+            self.config.eval_data_dir = os.path.expanduser(self.config.eval_data_dir)
 
         bt.logging(config=self.config)
         bt.logging.info(f"Starting validator with config: {self.config}")
 
-        self.cnt =0
+        # === Bittensor objects ====
+        bt.logging.info("Initializing wallet")
+        self.wallet = bt.wallet(config=self.config)
+        bt.logging.info(f"Wallet initialized: {self.wallet}")
+        bt.logging.info("Initializing subtensor")
+        try:
+            self.subtensor = bt.subtensor(config=self.config)
+            bt.logging.info(f"Subtensor initialized: {self.subtensor}")
+            bt.logging.info(f"Connected to network: {self.subtensor.network}")
+            bt.logging.info(f"Chain endpoint: {self.subtensor.chain_endpoint}")
+        except Exception as e:
+            bt.logging.error(f"Failed to initialize subtensor: {e}")
+            raise
+
+        self.dendrite = bt.dendrite(wallet=self.wallet)
+
+        bt.logging.info(f"Fetching metagraph for netuid: {self.config.netuid}")
+        self.metagraph: bt.metagraph = self.subtensor.metagraph(self.config.netuid)
+
+        bt.logging.info("Checking if wallet is registered on subnet")
+        self.uid = assert_registered(self.wallet, self.metagraph)
+
+        bt.logging.info("Initializing weights tensor")
+        self.weights = torch.zeros_like(torch.tensor(self.metagraph.S))
+        bt.logging.info(f"Weights initialized with shape: {self.weights.shape}")
+
+        self.uids_to_eval: typing.Dict[str, typing.List] = {}
+        bt.logging.info("Initializing score database")
+        self.score_db = ScoreDB("scores.db")
+        bt.logging.info("Score database initialized")
+        self.rng = np.random.default_rng()
+        bt.logging.info("Validator initialization complete")
+
+        self.last_competition_hash = None
+        tempo = self.subtensor.tempo(self.config.netuid)
+        self.last_submitted_epoch = (
+                self.subtensor.get_next_epoch_start_block(self.config.netuid) - tempo
+        )
 
         bt.logging.info("Validator ready to run")
 
