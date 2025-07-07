@@ -1,7 +1,8 @@
+import os
 import subprocess
 import sys
 import bittensor as bt
-
+from flockoff import constants
 
 def run_git_command(command, check=True, capture_output=False):
     try:
@@ -55,7 +56,6 @@ def update_to_latest():
 
     bt.logging.info("Repository is not up to date. Starting update process...")
 
-
     if current_branch != "main":
         bt.logging.info(f"Switching from '{current_branch}' to 'main' branch...")
         run_git_command(["git", "checkout", "main"])
@@ -63,9 +63,10 @@ def update_to_latest():
     bt.logging.info("Pulling latest changes from origin/main...")
     run_git_command(["git", "pull", "origin", "main"])
 
-    latest_commit = run_git_command(["git", "rev-parse", "HEAD"], capture_output=True)
-    if latest_commit:
-        bt.logging.info(f"Successfully updated to latest commit: {latest_commit[:8]}")
+    if is_up_to_date_with_main():
+        bt.logging.info("Successfully updated to latest code from main")
+        if constants.SCORE_DB_PURGE:
+            os.remove("scores.db")
         return True
     bt.logging.error("Failed to update repository. Exiting...")
     sys.exit(1)

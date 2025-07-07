@@ -65,3 +65,6 @@ class Competition:
 
 # eval dataset huggingface
 eval_commit = "f39608ce0921580ccea12cd31e60890797a15ba1"
+
+#  score db need to be deleted
+SCORE_DB_PURGE = True
