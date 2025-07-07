@@ -22,22 +22,25 @@ import time
 import torch
 import typing
 import bittensor as bt
-
-from flockoff.utils.git import check_and_update_code
-import os
-import argparse
-import asyncio
-import torch
-import typing
-
+import math
 import numpy as np
-
+import json
+import hashlib
+from dataclasses import asdict
 
 from flockoff import constants
 from flockoff.utils.chain import assert_registered, read_chain_commitment
-
+from flockoff.utils.git import check_and_update_code
+from flockoff.validator.chain import (
+    retrieve_model_metadata,
+    set_weights_with_err_msg,
+)
+from flockoff.validator.validator_utils import compute_score, load_jsonl, count_similar
+from flockoff.validator.trainer import (
+    train_lora,
+    download_dataset,
+)
 from flockoff.validator.database import ScoreDB
-
 
 
 class Validator:
@@ -100,8 +103,7 @@ class Validator:
         self.config = Validator.config()
 
         bt.logging.info("Checking git branch")
-
-        self.cnt = 0
+        check_and_update_code()
 
         if self.config.cache_dir and self.config.cache_dir.startswith("~"):
             self.config.cache_dir = os.path.expanduser(self.config.cache_dir)
@@ -133,6 +135,7 @@ class Validator:
 
         bt.logging.info(f"Fetching metagraph for netuid: {self.config.netuid}")
         self.metagraph: bt.metagraph = self.subtensor.metagraph(self.config.netuid)
+        torch.backends.cudnn.benchmark = True
 
         bt.logging.info("Checking if wallet is registered on subnet")
         self.uid = 0
@@ -151,18 +154,63 @@ class Validator:
         self.last_competition_hash = None
         tempo = self.subtensor.tempo(self.config.netuid)
         self.last_submitted_epoch = (
-                self.subtensor.get_next_epoch_start_block(self.config.netuid) - tempo
+            self.subtensor.get_next_epoch_start_block(self.config.netuid) - tempo
         )
 
         bt.logging.info("Validator ready to run")
 
+    def should_set_weights(self) -> bool:
+        current_block = self.subtensor.get_current_block()
+        next_epoch_block = self.subtensor.get_next_epoch_start_block(self.config.netuid)
+        blocks_to_epoch = next_epoch_block - current_block
+        if self.last_submitted_epoch == next_epoch_block:
+            return False
+
+        threshold = self.config.block_threshold
+        return blocks_to_epoch <= threshold
+
+    async def try_sync_metagraph(self) -> bool:
+        bt.logging.trace("Syncing metagraph")
+        try:
+            self.metagraph = self.subtensor.metagraph(self.config.netuid)
+            self.metagraph.save()
+            bt.logging.info("Synced metagraph")
+            return True
+        except Exception as e:
+            bt.logging.error(f"Error syncing metagraph: {e}")
+            return False
+
     async def run_step(self):
         bt.logging.info("Starting run step")
-        self.cnt += 1
-        bt.logging.info(f"Now the cnt is {self.cnt}")
         check_and_update_code()
-        self.score_db.set_revision("3", "test")
+
+        bt.logging.info("Attempting to sync metagraph")
+        synced_metagraph = await self.try_sync_metagraph()
+        if not synced_metagraph:
+            bt.logging.warning("Failed to sync metagraph")
+            return
+
+        bt.logging.info("Getting current UIDs and hotkeys")
+        current_uids = self.metagraph.uids.tolist()
+        hotkeys = self.metagraph.hotkeys
+        bt.logging.info(f"Current UIDs: {current_uids}")
+
+        # Explicitly setting initial scores for new/reset UIDs.
+        # base_raw_score is set to constants.DEFAULT_RAW_SCORE (999), representing no prior evaluation.
+        base_raw_score = constants.DEFAULT_RAW_SCORE
+        # initial_normalized_score is set to a small non-zero value (1.0 / 255.0) 
+        # to serve as a minimal starting weight for new miners.
+        initial_normalized_score = 1.0 / 255.0 
+        for uid in current_uids:
+            self.score_db.insert_or_reset_uid(uid, hotkeys[uid], base_raw_score, initial_normalized_score)
+
+        bt.logging.info("Getting normalized scores from database for initial weights")
+        db_normalized_scores = self.score_db.get_all_normalized_scores(current_uids)
+
         time.sleep(10)
+
+
+
 
     async def run(self):
         while True:
