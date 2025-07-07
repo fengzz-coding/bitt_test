@@ -206,7 +206,7 @@ class Validator:
 
         bt.logging.info("Getting normalized scores from database for initial weights")
         db_normalized_scores = self.score_db.get_all_normalized_scores(current_uids)
-
+        self.score_db.set_revision("1","2")
         time.sleep(10)
 
 
