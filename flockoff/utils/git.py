@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+import configparser
 import bittensor as bt
 from flockoff import constants
 from flockoff.validator.database import ScoreDB
@@ -66,7 +67,9 @@ def update_to_latest():
 
     if is_up_to_date_with_main():
         bt.logging.info("Successfully updated to latest code from main")
-        if constants.SCORE_DB_PURGE:
+        purge = configparser.ConfigParser()
+        purge.read('flockoff/validator/config.ini')
+        if purge.getboolean('settings', 'score_db_purge', fallback=False):
             os.remove("scores.db")
         python = sys.executable
         # restart the project.

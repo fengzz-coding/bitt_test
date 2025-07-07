@@ -65,7 +65,3 @@ class Competition:
 
 # eval dataset huggingface
 eval_commit = "f39608ce0921580ccea12cd31e60890797a15ba1"
-
-# TODO: Review before each commit
-# Controls whether to purge the score database on startup
-SCORE_DB_PURGE = False
