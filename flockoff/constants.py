@@ -66,6 +66,6 @@ class Competition:
 # eval dataset huggingface
 eval_commit = "f39608ce0921580ccea12cd31e60890797a15ba1"
 
-# WARNING: Set to False before production deployment
-# If True, clears all score data when application starts
-ENABLE_SCORE_DB_RESET = True
+# TODO: Review before each commit
+# Controls whether to purge the score database on startup
+SCORE_DB_PURGE = True
