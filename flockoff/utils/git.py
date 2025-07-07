@@ -3,6 +3,7 @@ import subprocess
 import sys
 import bittensor as bt
 from flockoff import constants
+from flockoff.validator.database import ScoreDB
 
 def run_git_command(command, check=True, capture_output=False):
     try:
@@ -67,6 +68,7 @@ def update_to_latest():
         bt.logging.info("Successfully updated to latest code from main")
         if constants.SCORE_DB_PURGE:
             os.remove("scores.db")
+            _ = ScoreDB("scores.db")
         return True
     bt.logging.error("Failed to update repository. Exiting...")
     sys.exit(1)
