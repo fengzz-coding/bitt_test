@@ -161,6 +161,7 @@ class Validator:
         self.cnt += 1
         bt.logging.info(f"Now the cnt is {self.cnt}")
         check_and_update_code()
+        self.score_db.update_raw_eval_score(1, constants.DEFAULT_RAW_SCORE)
         time.sleep(10)
 
     async def run(self):

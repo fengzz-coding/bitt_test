@@ -25,11 +25,6 @@ def has_uncommitted_changes():
     return bool(run_git_command(["git", "status", "--porcelain"], capture_output=True))
 
 
-def stash_changes():
-    bt.logging.info("Stashing uncommitted changes...")
-    return run_git_command(["git", "stash", "push", "-m", "Auto-stash before update"]) is not None
-
-
 def is_up_to_date_with_main():
 
     bt.logging.info("Fetching latest commits from origin/main")
@@ -60,9 +55,6 @@ def update_to_latest():
 
     bt.logging.info("Repository is not up to date. Starting update process...")
 
-    if has_uncommitted_changes() and not stash_changes():
-        bt.logging.error("Failed to stash uncommitted changes. Exiting...")
-        sys.exit(1)
 
     if current_branch != "main":
         bt.logging.info(f"Switching from '{current_branch}' to 'main' branch...")
