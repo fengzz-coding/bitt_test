@@ -68,8 +68,8 @@ def update_to_latest():
         bt.logging.info("Successfully updated to latest code from main")
         if constants.SCORE_DB_PURGE:
             os.remove("scores.db")
-            _ = ScoreDB("scores.db")
-        return True
+            python = sys.executable
+            os.execv(python, [python] + sys.argv)
     bt.logging.error("Failed to update repository. Exiting...")
     sys.exit(1)
 
