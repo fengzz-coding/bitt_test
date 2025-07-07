@@ -70,7 +70,7 @@ def update_to_latest():
         purge = configparser.ConfigParser()
         purge.read('flockoff/validator/config.ini')
         if purge.getboolean('settings', 'score_db_purge', fallback=False):
-            bt.logging.info("removing scores.db.")
+            bt.logging.info("removing scores.db")
             os.remove("scores.db")
         python = sys.executable
         # restart the project.
