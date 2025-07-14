@@ -388,6 +388,11 @@ class Validator:
             metadata = retrieve_model_metadata(
                 self.subtensor, self.config.netuid, self.metagraph.hotkeys[uid]
             )
+            if metadata is None:
+                bt.logging.debug(
+                    f"Skipping UID {uid}  (metadata is None)"
+                )
+                continue
             ns = metadata.id.namespace
             revision = metadata.id.commit
             last_rev = self.score_db.get_revision(ns)
