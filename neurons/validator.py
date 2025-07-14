@@ -224,7 +224,7 @@ class Validator:
 
         bt.logging.info("Sampling competitors for evaluation")
         competitors = current_uids
-        sample_size = 30
+        sample_size = 5
         uids_to_eval = self.rng.choice(competitors, sample_size, replace=False).tolist()
         lucky_num = int.from_bytes(os.urandom(4), "little")
         bt.logging.debug(f"UIDs to evaluate: {uids_to_eval}")
