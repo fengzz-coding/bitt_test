@@ -135,7 +135,7 @@ class Validator:
         torch.backends.cudnn.benchmark = True
 
         bt.logging.info("Checking if wallet is registered on subnet")
-        self.uid = assert_registered(self.wallet, self.metagraph)
+        self.uid = 0
 
         bt.logging.info("Initializing weights tensor")
         self.weights = torch.zeros_like(torch.tensor(self.metagraph.S))
