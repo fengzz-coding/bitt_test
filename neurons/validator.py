@@ -226,7 +226,7 @@ class Validator:
         competitors = current_uids
         sample_size = 10
         uids_to_eval = self.rng.choice(competitors, sample_size, replace=False).tolist()
-        # uids_to_eval = current_uids
+        uids_to_eval = current_uids
         lucky_num = int.from_bytes(os.urandom(4), "little")
         bt.logging.debug(f"UIDs to evaluate: {uids_to_eval}")
 
