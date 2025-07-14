@@ -335,7 +335,7 @@ class Validator:
                         similar_uids.append(uid_j)
 
             if len(similar_uids) > 1:
-                bt.logging.info(f"Found duplicate group: {similar_uids}")
+                bt.logging.error(f"Found duplicate group: {similar_uids}")
                 duplicate_groups.append(similar_uids)
                 processed_uids.update(similar_uids)
 
