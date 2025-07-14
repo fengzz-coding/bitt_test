@@ -377,6 +377,31 @@ class Validator:
                 raw_scores_this_epoch[uid] = constants.DEFAULT_RAW_SCORE
                 self.score_db.update_raw_eval_score(uid, constants.DEFAULT_RAW_SCORE)
 
+        bt.logging.info("Normalizing raw scores")
+        normalized_scores_this_epoch = {}
+        for uid in uids_to_eval:
+            current_raw_score = raw_scores_this_epoch.get(uid)
+            if current_raw_score is not None and current_raw_score == constants.DEFAULT_RAW_SCORE:
+                bt.logging.info(f"The dataset for UID {uid} is invalid.")
+                continue
+
+            metadata = retrieve_model_metadata(
+                self.subtensor, self.config.netuid, self.metagraph.hotkeys[uid]
+            )
+            ns = metadata.id.namespace
+            revision = metadata.id.commit
+            last_rev = self.score_db.get_revision(ns)
+            bt.logging.info(f"Metadata namespace: {ns}, commit: {revision}")
+            if last_rev == revision:
+                bt.logging.info(
+                    f"Skipping UID {uid} as it has already been evaluated with revision {revision}"
+                )
+                retrieved_raw_score = self.score_db.get_raw_eval_score(uid)
+                raw_scores_this_epoch[
+                    uid] = retrieved_raw_score if retrieved_raw_score is not None else constants.DEFAULT_RAW_SCORE
+                continue
+            self.score_db.update_raw_eval_score(uid, 0.1)
+            self.score_db.set_revision(ns, revision)
 
     async def run(self):
         while True:
