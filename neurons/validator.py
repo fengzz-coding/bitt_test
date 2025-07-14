@@ -238,7 +238,7 @@ class Validator:
         processed_uids = set()
         bt.logging.info("Checking for duplicate scores using raw scores")
         for uid_i in uids_to_eval:
-
+            bt.logging.error(f"now is :{uid_i}")
             metadata_i = retrieve_model_metadata(
                 self.subtensor, self.config.netuid, self.metagraph.hotkeys[uid_i]
             )
