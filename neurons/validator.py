@@ -327,8 +327,9 @@ class Validator:
                     except Exception as e:
                         bt.logging.error(f"Error loading data file for UID {uid_j} during duplicate check: {e}")
                         continue
-
-                    if count_similar(miner_j_data_jsonl, miner_i_data_jsonl) > constants.DEFAULT_DUPLICATE_COUNT:
+                    similar_num = count_similar(miner_j_data_jsonl, miner_i_data_jsonl)
+                    bt.logging.error(f"similar_num:{similar_num}")
+                    if  similar_num > constants.DEFAULT_DUPLICATE_COUNT:
                         bt.logging.error(
                             f"Found similar raw score: {uid_i} and {uid_j}"
                         )
