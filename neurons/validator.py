@@ -410,9 +410,9 @@ class Validator:
             self.score_db.set_revision(ns, revision)
 
     async def run(self):
-
-        await self.run_step()
+        while True:
+            await self.run_step()
 
 
 if __name__ == "__main__":
-    asyncio.run(Validator().run())
+    print(1)
