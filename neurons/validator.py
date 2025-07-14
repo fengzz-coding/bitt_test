@@ -330,6 +330,7 @@ class Validator:
                     similar_num = count_similar(miner_j_data_jsonl, miner_i_data_jsonl)
                     bt.logging.error(f"similar_num:{similar_num}")
                     bt.logging.error(f"similar_uids:{similar_uids}")
+                    bt.logging.error(f" constants.DEFAULT_DUPLICATE_COUNT:{ constants.DEFAULT_DUPLICATE_COUNT:}")
                     if similar_num > constants.DEFAULT_DUPLICATE_COUNT:
                         bt.logging.error(f"Found similar raw score: {uid_i} and {uid_j}")
                         similar_uids.append(uid_j)
