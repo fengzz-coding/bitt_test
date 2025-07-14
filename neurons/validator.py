@@ -277,26 +277,7 @@ class Validator:
                     cache_dir=self.config.cache_dir,
                 )
 
-                bt.logging.info(
-                    f"Downloading eval dataset: {eval_namespace}/{constants.eval_commit}"
-                )
 
-                download_dataset(
-                    eval_namespace,
-                    constants.eval_commit,
-                    local_dir=eval_data_dir,
-                    cache_dir=self.config.cache_dir,
-                )
-
-                for fname in os.listdir(eval_data_dir):
-                    if fname.endswith(".jsonl"):
-                        src = os.path.join(eval_data_dir, fname)
-                        dst = os.path.join(eval_data_dir, "data.jsonl")
-                        if src != dst:
-                            os.replace(src, dst)
-                            bt.logging.info(f"Renamed {fname} → data.jsonl")
-
-                eval_data_jsonl = load_jsonl(os.path.join(eval_data_dir, "data.jsonl"))
                 miner_i_data_jsonl = load_jsonl(os.path.join(miner_i_data_dir, "data.jsonl"))
             except FileNotFoundError as e:
                 bt.logging.warning(f"Data file not found for UID {uid_i}: {e}")
@@ -309,15 +290,6 @@ class Validator:
                 bt.logging.info(f"Assigning fallback score to UID {uid_i} due to data loading error")
                 raw_scores_this_epoch[uid_i] = constants.DEFAULT_RAW_SCORE
                 self.score_db.update_raw_eval_score(uid_i, constants.DEFAULT_RAW_SCORE)
-                continue
-
-            if count_similar(eval_data_jsonl, miner_i_data_jsonl) != len(miner_i_data_jsonl):
-                raw_scores_this_epoch[uid_i] = constants.DEFAULT_RAW_SCORE
-                self.score_db.update_raw_eval_score(uid_i, constants.DEFAULT_RAW_SCORE)
-                bt.logging.info(
-                    f"Assigned fallback score {constants.DEFAULT_RAW_SCORE:.6f} to UID {uid_i} due to the "
-                    f"miner dataset is not entirely from the evaluation dataset"
-                )
                 continue
 
             similar_uids = [uid_i]
@@ -379,6 +351,7 @@ class Validator:
                 self.score_db.update_raw_eval_score(uid, constants.DEFAULT_RAW_SCORE)
 
         bt.logging.info("Normalizing raw scores")
+        bt.logging.error(raw_scores_this_epoch)
         normalized_scores_this_epoch = {}
         for uid in uids_to_eval:
             current_raw_score = raw_scores_this_epoch.get(uid)
@@ -410,10 +383,9 @@ class Validator:
             self.score_db.set_revision(ns, revision)
 
     async def run(self):
-        while True:
+        # while True:
             await self.run_step()
 
 
 if __name__ == "__main__":
-    # asyncio.run(Validator().run())
-    print(1)
+    asyncio.run(Validator().run())
