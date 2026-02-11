@@ -1,5 +1,7 @@
 import os
 import shutil
+import time
+
 import torch
 import gc
 
@@ -23,6 +25,7 @@ from .dataset import SFTDataCollator, SFTDataset
 from .constants import model2template
 import bittensor as bt
 from flockoff.validator.database import ScoreDB
+from flockoff import constants
 
 api = HfApi()
 
@@ -38,7 +41,7 @@ class LoraTrainingArguments:
 
 
 def download_dataset(
-    namespace: str, revision: str, local_dir: str = "data", cache_dir: str = None
+        namespace: str, revision: str, local_dir: str = "data", cache_dir: str = None, force: bool = False
 ):
     # Create cache directory if it doesn't exist
     if cache_dir:
@@ -50,28 +53,57 @@ def download_dataset(
         local_dir = os.path.abspath(local_dir)
 
     db = ScoreDB("scores.db")
-    last = db.get_revision(namespace)
+    last = db.get_revision(namespace, local_dir)
+
     # only skip if we've recorded the same revision *and* dir still exists
     if last == revision and os.path.isdir(local_dir):
-        bt.logging.info(
-            f"[HF] {namespace}@{revision} already present; skipping download."
-        )
-        return
+        if not force:
+            return
     # if revision changed and dir exists, clear it so we'll redownload clean
     if last is not None and last != revision and os.path.isdir(local_dir):
         bt.logging.info(
             f"[HF] Revision changed: {last} → {revision}, removing old data."
         )
         shutil.rmtree(local_dir, ignore_errors=True)
+    if force:
+        bt.logging.info(f"[HF] Force dataset download {namespace}@{revision} → {local_dir}")
+        shutil.rmtree(local_dir, ignore_errors=True)
     # make sure the folder is there before we download
     os.makedirs(local_dir, exist_ok=True)
 
     bt.logging.info(f"[HF] Downloading dataset {namespace}@{revision} → {local_dir}")
-    api.snapshot_download(
-        repo_id=namespace, local_dir=local_dir, revision=revision, repo_type="dataset"
-    )
+    try:
+        api.snapshot_download(
+            repo_id=namespace, local_dir=local_dir, revision=revision, repo_type="dataset"
+        )
+        db.set_revision(namespace, revision, local_dir)
+        time.sleep(1)
+    except Exception as e:
+        bt.logging.error(f"api.snapshot_download error:{e}")
 
-    db.set_revision(namespace, revision)
+
+def check_valid_revision(namespace: str, revision: str):
+    try:
+        repo_info = HfApi(token=os.environ["HF_TOKEN"]).repo_info(repo_id=namespace, revision=revision, repo_type="dataset")
+    except Exception as e:
+        bt.logging.error(f"Error fetching repo info for repo {namespace} and revision {revision}: {e}")
+        return False
+    # Cut down the commit hash to the same amount of characters as the revision to compare them
+    # Enforce a 7 character length minimum for the revision to prevent collisions
+    revision_length = max(len(revision), 7)
+    if repo_info.sha[:revision_length] != revision:
+        bt.logging.error(f"revision {revision} does not match the commit hash {repo_info.sha}")
+        return False
+    return True
+
+
+def get_hg_revision(namespace: str, eval_commit: str):
+    try:
+        repo_info = HfApi(token=os.environ["HF_TOKEN"]).repo_info(repo_id=namespace, revision=eval_commit, repo_type="dataset")
+    except Exception as e:
+        bt.logging.error(f"Error fetching repo info for repo {namespace} and revision {eval_commit}: {e}")
+        return None
+    return repo_info.sha
 
 
 def reset_gpu():
@@ -90,6 +122,7 @@ def reset_gpu():
         except Exception as e:
             bt.logging.error(f"Error resetting GPU: {e}")
 
+
 def safe_cuda_cleanup(model):
     """Safely move model to CPU and delete it"""
     try:
@@ -101,18 +134,19 @@ def safe_cuda_cleanup(model):
     finally:
         gc.collect()
 
+
 def train_lora(
-    lucky_num: int,
-    benchmark_loss: float,
-    eval_size: int,
-    cache_dir: str = None,
-    data_dir: str = "data",
-    eval_data_dir: str = "eval_data",
+        lucky_num: int,
+        benchmark_loss: float,
+        eval_size: int,
+        cache_dir: str = None,
+        data_dir: str = "data",
+        eval_data_dir: str = "eval_data",
 ) -> float:
     try:
         # Reset GPU state at the start
         reset_gpu()
-        
+
         if cache_dir:
             os.makedirs(cache_dir, exist_ok=True)
             os.environ["HF_HOME"] = cache_dir
@@ -120,14 +154,7 @@ def train_lora(
 
         # set the same random seed to detect duplicate data sets
         from dotenv import load_dotenv
-
         load_dotenv()
-        os.environ["PYTHONHASHSEED"] = str(lucky_num)
-
-        torch.manual_seed(lucky_num)
-        if torch.cuda.is_available():
-            torch.cuda.manual_seed(lucky_num)
-            torch.cuda.manual_seed_all(lucky_num)
 
         CONTEXT_LENGTH = 2048
         with open(f"flockoff/validator/training_args.yaml", "r") as f:
@@ -263,19 +290,19 @@ def train_lora(
 
         # Eval model
         eval_result = eval_trainer.evaluate()
-        
+
         # Thorough cleanup
         safe_cuda_cleanup(eval_model)
         safe_cuda_cleanup(eval_trainer)
         safe_cuda_cleanup(trainer)
         safe_cuda_cleanup(model)
         safe_cuda_cleanup(tokenizer)
-        
+
         # Clear any remaining CUDA memory
         reset_gpu()
-        
+
         return eval_result["eval_loss"]
-        
+
     except Exception as e:
         bt.logging.error(f"Error during training: {e}")
         # Attempt to clean up in case of error
@@ -293,5 +320,5 @@ def train_lora(
             reset_gpu()
         except Exception as cleanup_error:
             bt.logging.error(f"Error during cleanup after training error: {cleanup_error}")
-        
+
         return benchmark_loss
